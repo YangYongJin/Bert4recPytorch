@@ -34,5 +34,3 @@ class ML20MDataset(AbstractDataset):
         df = pd.read_csv(file_path)
         df.columns = ['uid', 'sid', 'rating', 'timestamp']
         return df
-
-

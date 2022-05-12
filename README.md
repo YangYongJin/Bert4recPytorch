@@ -1,12 +1,8 @@
 # Introduction
 
-This repository implements models from the following two papers:
+Original Code: https://github.com/jaywonchung/BERT4Rec-VAE-Pytorch
 
-> **BERT4Rec: Sequential Recommendation with BERT (Sun et al.)**  
-
-> **Variational Autoencoders for Collaborative Filtering (Liang et al.)**  
-
-and lets you train them on MovieLens-1m and MovieLens-20m.
+This repository adds the rating encoding to the orignal code.
 
 # Usage
 
@@ -42,7 +38,7 @@ python main.py --template train_vae_search_beta
 
 First, **fill out the optimal beta value in `templates.py`**. Then, run the following.
 
-``` bash
+```bash
 python main.py --template train_vae_give_beta
 ```
 
@@ -67,7 +63,7 @@ The `NDCG_10` metric shows that the improvement claimed by the paper has been re
    ```bash
    printf '1\nn\n' | python main.py --template train_vae_search_beta
    ```
-  
+
 # Test Set Results
 
 Numbers under model names indicate the number of hidden layers.

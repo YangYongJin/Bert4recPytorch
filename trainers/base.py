@@ -27,7 +27,8 @@ class AbstractTrainer(metaclass=ABCMeta):
         self.test_loader = test_loader
         self.optimizer = self._create_optimizer()
         if args.enable_lr_schedule:
-            self.lr_scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=args.decay_step, gamma=args.gamma)
+            self.lr_scheduler = optim.lr_scheduler.StepLR(
+                self.optimizer, step_size=args.decay_step, gamma=args.gamma)
 
         self.num_epochs = args.num_epochs
         self.metric_ks = args.metric_ks
@@ -36,7 +37,8 @@ class AbstractTrainer(metaclass=ABCMeta):
         self.export_root = export_root
         self.writer, self.train_loggers, self.val_loggers = self._create_loggers()
         self.add_extra_loggers()
-        self.logger_service = LoggerService(self.train_loggers, self.val_loggers)
+        self.logger_service = LoggerService(
+            self.train_loggers, self.val_loggers)
         self.log_period_as_iter = args.log_period_as_iter
 
     @abstractmethod
@@ -128,9 +130,12 @@ class AbstractTrainer(metaclass=ABCMeta):
                     average_meter_set.update(k, v)
                 description_metrics = ['NDCG@%d' % k for k in self.metric_ks[:3]] +\
                                       ['Recall@%d' % k for k in self.metric_ks[:3]]
-                description = 'Val: ' + ', '.join(s + ' {:.3f}' for s in description_metrics)
-                description = description.replace('NDCG', 'N').replace('Recall', 'R')
-                description = description.format(*(average_meter_set[k].avg for k in description_metrics))
+                description = 'Val: ' + \
+                    ', '.join(s + ' {:.3f}' for s in description_metrics)
+                description = description.replace(
+                    'NDCG', 'N').replace('Recall', 'R')
+                description = description.format(
+                    *(average_meter_set[k].avg for k in description_metrics))
                 tqdm_dataloader.set_description(description)
 
             log_data = {
@@ -145,7 +150,8 @@ class AbstractTrainer(metaclass=ABCMeta):
     def test(self):
         print('Test best model with test set!')
 
-        best_model = torch.load(os.path.join(self.export_root, 'models', 'best_acc_model.pth')).get('model_state_dict')
+        best_model = torch.load(os.path.join(
+            self.export_root, 'models', 'best_acc_model.pth')).get('model_state_dict')
         self.model.load_state_dict(best_model)
         self.model.eval()
 
@@ -162,9 +168,12 @@ class AbstractTrainer(metaclass=ABCMeta):
                     average_meter_set.update(k, v)
                 description_metrics = ['NDCG@%d' % k for k in self.metric_ks[:3]] +\
                                       ['Recall@%d' % k for k in self.metric_ks[:3]]
-                description = 'Val: ' + ', '.join(s + ' {:.3f}' for s in description_metrics)
-                description = description.replace('NDCG', 'N').replace('Recall', 'R')
-                description = description.format(*(average_meter_set[k].avg for k in description_metrics))
+                description = 'Test: ' + \
+                    ', '.join(s + ' {:.3f}' for s in description_metrics)
+                description = description.replace(
+                    'NDCG', 'N').replace('Recall', 'R')
+                description = description.format(
+                    *(average_meter_set[k].avg for k in description_metrics))
                 tqdm_dataloader.set_description(description)
 
             average_metrics = average_meter_set.averages()
@@ -187,8 +196,10 @@ class AbstractTrainer(metaclass=ABCMeta):
         model_checkpoint = root.joinpath('models')
 
         train_loggers = [
-            MetricGraphPrinter(writer, key='epoch', graph_name='Epoch', group_name='Train'),
-            MetricGraphPrinter(writer, key='loss', graph_name='Loss', group_name='Train'),
+            MetricGraphPrinter(writer, key='epoch',
+                               graph_name='Epoch', group_name='Train'),
+            MetricGraphPrinter(writer, key='loss',
+                               graph_name='Loss', group_name='Train'),
         ]
 
         val_loggers = []
@@ -198,7 +209,8 @@ class AbstractTrainer(metaclass=ABCMeta):
             val_loggers.append(
                 MetricGraphPrinter(writer, key='Recall@%d' % k, graph_name='Recall@%d' % k, group_name='Validation'))
         val_loggers.append(RecentModelLogger(model_checkpoint))
-        val_loggers.append(BestModelLogger(model_checkpoint, metric_key=self.best_metric))
+        val_loggers.append(BestModelLogger(
+            model_checkpoint, metric_key=self.best_metric))
         return writer, train_loggers, val_loggers
 
     def _create_state_dict(self):

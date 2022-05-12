@@ -1,3 +1,9 @@
+import pickle
+import shutil
+import tempfile
+import os
+from pathlib import Path
+from abc import *
 from .utils import *
 from config import RAW_DATASET_ROOT_FOLDER
 
@@ -5,13 +11,6 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 tqdm.pandas()
-
-from abc import *
-from pathlib import Path
-import os
-import tempfile
-import shutil
-import pickle
 
 
 class AbstractDataset(metaclass=ABCMeta):
@@ -69,13 +68,14 @@ class AbstractDataset(metaclass=ABCMeta):
             dataset_path.parent.mkdir(parents=True)
         self.maybe_download_raw_dataset()
         df = self.load_ratings_df()
-        df = self.make_implicit(df)
-        df = self.filter_triplets(df)
+        df = self.make_implicit(df)  # rating낮은거 거르기
+        df = self.filter_triplets(df)  # user item너무 적은거 거르기
         df, umap, smap = self.densify_index(df)
-        train, val, test = self.split_df(df, len(umap))
+        train, val, test, rating = self.split_df(df, len(umap))
         dataset = {'train': train,
                    'val': val,
                    'test': test,
+                   'rating': rating,
                    'umap': umap,
                    'smap': smap}
         with dataset_path.open('wb') as f:
@@ -140,12 +140,21 @@ class AbstractDataset(metaclass=ABCMeta):
         if self.args.split == 'leave_one_out':
             print('Splitting')
             user_group = df.groupby('uid')
-            user2items = user_group.progress_apply(lambda d: list(d.sort_values(by='timestamp')['sid']))
-            train, val, test = {}, {}, {}
+            user2items = user_group.progress_apply(
+                lambda d: list(d.sort_values(by='timestamp')['sid']))
+
+            # additional part
+            user2ratings = user_group.progress_apply(
+                lambda d: list(d.sort_values(by='timestamp')['rating']))
+            # print(user2items)
+            # 1/0
+            train, val, test, rating = {}, {}, {}, {}
             for user in range(user_count):
                 items = user2items[user]
-                train[user], val[user], test[user] = items[:-2], items[-2:-1], items[-1:]
-            return train, val, test
+                train[user], val[user], test[user] = items[:-
+                                                           2], items[-2:-1], items[-1:]
+                rating[user] = user2ratings[user][:-2]
+            return train, val, test, rating
         elif self.args.split == 'holdout':
             print('Splitting')
             np.random.seed(self.args.dataset_split_seed)
@@ -153,19 +162,22 @@ class AbstractDataset(metaclass=ABCMeta):
 
             # Generate user indices
             permuted_index = np.random.permutation(user_count)
-            train_user_index = permuted_index[                :-2*eval_set_size]
-            val_user_index   = permuted_index[-2*eval_set_size:  -eval_set_size]
-            test_user_index  = permuted_index[  -eval_set_size:                ]
+            train_user_index = permuted_index[:-2*eval_set_size]
+            val_user_index = permuted_index[-2*eval_set_size: -eval_set_size]
+            test_user_index = permuted_index[-eval_set_size:]
 
             # Split DataFrames
             train_df = df.loc[df['uid'].isin(train_user_index)]
-            val_df   = df.loc[df['uid'].isin(val_user_index)]
-            test_df  = df.loc[df['uid'].isin(test_user_index)]
+            val_df = df.loc[df['uid'].isin(val_user_index)]
+            test_df = df.loc[df['uid'].isin(test_user_index)]
 
             # DataFrame to dict => {uid : list of sid's}
-            train = dict(train_df.groupby('uid').progress_apply(lambda d: list(d['sid'])))
-            val   = dict(val_df.groupby('uid').progress_apply(lambda d: list(d['sid'])))
-            test  = dict(test_df.groupby('uid').progress_apply(lambda d: list(d['sid'])))
+            train = dict(train_df.groupby(
+                'uid').progress_apply(lambda d: list(d['sid'])))
+            val = dict(val_df.groupby('uid').progress_apply(
+                lambda d: list(d['sid'])))
+            test = dict(test_df.groupby('uid').progress_apply(
+                lambda d: list(d['sid'])))
             return train, val, test
         else:
             raise NotImplementedError
@@ -190,4 +202,3 @@ class AbstractDataset(metaclass=ABCMeta):
     def _get_preprocessed_dataset_path(self):
         folder = self._get_preprocessed_folder_path()
         return folder.joinpath('dataset.pkl')
-

@@ -27,9 +27,11 @@ class ML1MDataset(AbstractDataset):
 
     def load_ratings_df(self):
         folder_path = self._get_rawdata_folder_path()
-        file_path = folder_path.joinpath('ratings.dat')
-        df = pd.read_csv(file_path, sep='::', header=None)
-        df.columns = ['uid', 'sid', 'rating', 'timestamp']
+        file_path = folder_path.joinpath('Office_Products.csv')
+        df = pd.read_csv(file_path, usecols=[
+                         'rating', 'reviewerID', 'product_id', 'date'])
+        df = df.iloc[:500000, :]
+        df.rename(columns={'reviewerID': 'user_id'}, inplace=True)
+        df.loc[:, 'rating'] = df.loc[:, 'rating'].apply(lambda x: float(x))
+        df.columns = ['rating', 'uid', 'sid', 'timestamp']
         return df
-
-

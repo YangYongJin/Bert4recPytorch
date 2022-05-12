@@ -46,7 +46,8 @@ class BertDataloader(AbstractDataloader):
         return dataloader
 
     def _get_train_dataset(self):
-        dataset = BertTrainDataset(self.train, self.max_len, self.mask_prob, self.CLOZE_MASK_TOKEN, self.item_count, self.rng)
+        dataset = BertTrainDataset(
+            self.train, self.rating, self.max_len, self.mask_prob, self.CLOZE_MASK_TOKEN, self.item_count, self.rng)
         return dataset
 
     def _get_val_loader(self):
@@ -64,13 +65,15 @@ class BertDataloader(AbstractDataloader):
 
     def _get_eval_dataset(self, mode):
         answers = self.val if mode == 'val' else self.test
-        dataset = BertEvalDataset(self.train, answers, self.max_len, self.CLOZE_MASK_TOKEN, self.test_negative_samples)
+        dataset = BertEvalDataset(
+            self.train, self.rating, answers, self.max_len, self.CLOZE_MASK_TOKEN, self.test_negative_samples)
         return dataset
 
 
 class BertTrainDataset(data_utils.Dataset):
-    def __init__(self, u2seq, max_len, mask_prob, mask_token, num_items, rng):
+    def __init__(self, u2seq, u2rating, max_len, mask_prob, mask_token, num_items, rng):
         self.u2seq = u2seq
+        self.u2rating = u2rating  # additional
         self.users = sorted(self.u2seq.keys())
         self.max_len = max_len
         self.mask_prob = mask_prob
@@ -84,44 +87,55 @@ class BertTrainDataset(data_utils.Dataset):
     def __getitem__(self, index):
         user = self.users[index]
         seq = self._getseq(user)
+        rating = self._getrating(user)
 
         tokens = []
         labels = []
-        for s in seq:
+        ratings = []  # additional
+        for s, r in zip(seq, rating):
             prob = self.rng.random()
             if prob < self.mask_prob:
                 prob /= self.mask_prob
 
                 if prob < 0.8:
                     tokens.append(self.mask_token)
+                    ratings.append(6)
                 elif prob < 0.9:
                     tokens.append(self.rng.randint(1, self.num_items))
+                    ratings.append(6)
                 else:
                     tokens.append(s)
+                    ratings.append(6)
 
                 labels.append(s)
             else:
                 tokens.append(s)
-                labels.append(0)
+                labels.append(s)  # why originally 0?..?
+                ratings.append(r)
 
         tokens = tokens[-self.max_len:]
         labels = labels[-self.max_len:]
+        ratings = ratings[-self.max_len:]
 
         mask_len = self.max_len - len(tokens)
 
         tokens = [0] * mask_len + tokens
         labels = [0] * mask_len + labels
+        ratings = [1] * mask_len + ratings
 
-        return torch.LongTensor(tokens), torch.LongTensor(labels)
+        return (torch.LongTensor(tokens), torch.FloatTensor(ratings), torch.LongTensor(labels))
 
     def _getseq(self, user):
         return self.u2seq[user]
 
+    def _getrating(self, user):
+        return self.u2rating[user]
 
 
 class BertEvalDataset(data_utils.Dataset):
-    def __init__(self, u2seq, u2answer, max_len, mask_token, negative_samples):
+    def __init__(self, u2seq, u2rating, u2answer, max_len, mask_token, negative_samples):
         self.u2seq = u2seq
+        self.u2rating = u2rating
         self.users = sorted(self.u2seq.keys())
         self.u2answer = u2answer
         self.max_len = max_len
@@ -134,6 +148,7 @@ class BertEvalDataset(data_utils.Dataset):
     def __getitem__(self, index):
         user = self.users[index]
         seq = self.u2seq[user]
+        rating = self.u2rating[user]
         answer = self.u2answer[user]
         negs = self.negative_samples[user]
 
@@ -141,9 +156,11 @@ class BertEvalDataset(data_utils.Dataset):
         labels = [1] * len(answer) + [0] * len(negs)
 
         seq = seq + [self.mask_token]
+        rating = rating + [6]
         seq = seq[-self.max_len:]
+        rating = rating[-self.max_len:]
         padding_len = self.max_len - len(seq)
         seq = [0] * padding_len + seq
+        rating = [1] * padding_len + rating
 
-        return torch.LongTensor(seq), torch.LongTensor(candidates), torch.LongTensor(labels)
-
+        return torch.LongTensor(seq), torch.FloatTensor(rating), torch.LongTensor(candidates), torch.LongTensor(labels)

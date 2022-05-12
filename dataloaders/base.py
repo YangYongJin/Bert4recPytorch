@@ -11,11 +11,13 @@ class AbstractDataloader(metaclass=ABCMeta):
         dataset = dataset.load_dataset()
         self.train = dataset['train']
         self.val = dataset['val']
+        self.rating = dataset['rating']  # additional part
         self.test = dataset['test']
         self.umap = dataset['umap']
         self.smap = dataset['smap']
         self.user_count = len(self.umap)
         self.item_count = len(self.smap)
+        print(self.item_count)
 
     @classmethod
     @abstractmethod

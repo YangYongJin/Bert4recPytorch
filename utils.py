@@ -27,14 +27,16 @@ def create_experiment_export_folder(args):
     experiment_dir, experiment_description = args.experiment_dir, args.experiment_description
     if not os.path.exists(experiment_dir):
         os.mkdir(experiment_dir)
-    experiment_path = get_name_of_experiment_path(experiment_dir, experiment_description)
+    experiment_path = get_name_of_experiment_path(
+        experiment_dir, experiment_description)
     os.mkdir(experiment_path)
     print('Folder created: ' + os.path.abspath(experiment_path))
     return experiment_path
 
 
 def get_name_of_experiment_path(experiment_dir, experiment_description):
-    experiment_path = os.path.join(experiment_dir, (experiment_description + "_" + str(date.today())))
+    experiment_path = os.path.join(
+        experiment_dir, (experiment_description + "_" + str(date.today())))
     idx = _get_experiment_index(experiment_path)
     experiment_path = experiment_path + "_" + str(idx)
     return experiment_path
@@ -83,7 +85,8 @@ def load_pretrained_weights(model, path):
 
 
 def setup_to_resume(args, model, optimizer):
-    chk_dict = torch.load(os.path.join(os.path.abspath(args.resume_training), 'models/checkpoint-recent.pth'))
+    chk_dict = torch.load(os.path.join(os.path.abspath(
+        args.resume_training), 'models/checkpoint-recent.pth'))
     model.load_state_dict(chk_dict[STATE_DICT_KEY])
     optimizer.load_state_dict(chk_dict[OPTIMIZER_STATE_DICT_KEY])
 
